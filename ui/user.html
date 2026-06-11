@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixel Voice Assistant</title>
+</head>
+<body style="font-family: Arial; text-align:center; margin-top:100px;">
+
+  <h1>🎤 Pixel Voice Assistant</h1>
+
+  <button onclick="startListening()" style="padding:15px 25px; font-size:18px;">
+    🎤 Speak (Manual)
+  </button>
+
+  <p id="output">Say "Hey Pixel"...</p>
+
+  <script>
+    // ===============================
+    // VOICE SETUP
+    // ===============================
+    let voices = [];
+
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+      console.log("Voices loaded:", voices.length);
+    }
+
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    function getFemaleVoice() {
+      return voices.find(v =>
+        v.name.toLowerCase().includes("female") ||
+        v.name.toLowerCase().includes("zira") ||
+        v.name.toLowerCase().includes("samantha") ||
+        v.name.toLowerCase().includes("google uk english female")
+      ) || voices[0];
+    }
+
+    // ===============================
+    // SPEECH RECOGNITION
+    // ===============================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.lang = "en-US";
+
+    let activated = false;
+    let isSpeaking = false;
+
+    function startListening() {
+      recognition.start();
+      document.getElementById("output").innerText = "Listening...";
+    }
+
+    // ===============================
+    // WAKE WORD
+    // ===============================
+    function isWakeWord(text) {
+      return text.includes("hey") && 
+        (text.includes("pixel") || text.includes("pixal") || text.includes("picksal"));
+    }
+
+    // ===============================
+    // SPEAK FUNCTION (FIXED)
+    // ===============================
+    function speak(text) {
+      isSpeaking = true;
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.voice = getFemaleVoice();
+      utter.rate = 1;
+      utter.pitch = 1.2;
+
+      utter.onend = () => {
+        isSpeaking = false;
+      };
+
+      speechSynthesis.cancel();
+
+      setTimeout(() => {
+        speechSynthesis.speak(utter);
+      }, 150);
+
+      console.log("Speaking:", text);
+    }
+
+    // ===============================
+    // BEEP
+    // ===============================
+    function playBeep() {
+      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+      audio.play();
+    }
+
+    // ===============================
+    // COMMANDS
+    // ===============================
+    function handleCommand(cmd) {
+
+      if (cmd.includes("time")) {
+        const now = new Date();
+        speak("The time is " + now.getHours() + ":" + now.getMinutes());
+      }
+
+      else if (cmd.includes("hello")) {
+        speak("Hello! I am Pixel");
+      }
+
+      else if (cmd.includes("weather")) {
+        speak("Weather is 30 degree celsius and sunny");
+      }
+
+      else if (cmd.includes("navigate") || cmd.includes("map")) {
+        speak("Opening Google Maps");
+        window.open("https://maps.google.com", "_blank");
+      }
+
+      else if (cmd.includes("name")) {
+        speak("My name is Pixel, your assistant");
+      }
+
+      else if (cmd.includes("stop")) {
+        speechSynthesis.cancel();
+      }
+
+      else {
+        speak("I did not understand");
+      }
+    }
+
+    // ===============================
+    // MAIN LISTENER (FIXED)
+    // ===============================
+    recognition.onresult = function(event) {
+
+      // ❌ ignore if bot is speaking
+      if (isSpeaking) return;
+
+      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      document.getElementById("output").innerText = "You said: " + text;
+
+      console.log("Heard:", text);
+
+      // 🔥 WAKE WORD
+      if (isWakeWord(text)) {
+        activated = true;
+
+        speechSynthesis.cancel();
+
+        setTimeout(() => {
+          playBeep();
+          speak("Yes, I am listening");
+        }, 200);
+
+        return;
+      }
+
+      // 🔥 AFTER ACTIVATION
+      if (activated) {
+        handleCommand(text);
+        activated = false;
+      }
+    };
+
+    // ===============================
+    // AUTO RESTART
+    // ===============================
+    recognition.onend = function() {
+      recognition.start();
+    };
+
+    // ===============================
+    // INIT
+    // ===============================
+    loadVoices();
+    startListening();
+
+  </script>
+
+</body>
+</html>

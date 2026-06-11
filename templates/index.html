@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelOS ADAS — Smart Driving Intelligence</title>
+  <meta name="description" content="PixelOS integrated ADAS dashboard with real-time vehicle detection, speed limit monitoring, and AI car bot." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f0f0f2;
+      --panel:    #e0e0e4;
+      --panel2:   #d4d4d8;
+      --accent:   #ff6b00;
+      --accent2:  #9b30ff;
+      --cyan:     #00e5ff;
+      --green:    #22c55e;
+      --amber:    #f59e0b;
+      --red:      #ef4444;
+      --purple:   #8b5cf6;
+      --text:     #1a1a2e;
+      --text2:    #555577;
+      --muted:    #9999aa;
+      --radius:   22px;
+      --radius-sm:14px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════
+       OUTER SHELL
+    ══════════════════════════════════════ */
+    .shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 14px 16px 12px;
+      gap: 10px;
+      position: relative;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      padding: 0 4px;
+    }
+
+    .logo {
+      font-size: 1.9rem;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+      background: linear-gradient(90deg, #ff6b00 0%, #ff3eaa 40%, #9b30ff 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,0.08);
+      color: var(--text2);
+      transition: all 0.4s;
+    }
+    .badge.danger  { background:rgba(239,68,68,0.15);  color:#ef4444; }
+    .badge.success { background:rgba(34,197,94,0.15);  color:#16a34a; }
+    .badge.warning { background:rgba(245,158,11,0.15); color:#d97706; }
+    .badge.info    { background:rgba(139,92,246,0.15); color:#7c3aed; }
+
+    #statusBadge { transition: all 0.3s; }
+
+    /* ── Main grid: 2-col, 2-row ── */
+    .main-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1.18fr 1fr;
+      grid-template-rows: 1fr 68px;
+      gap: 10px;
+    }
+
+    /* ── Panels (shared) ── */
+    .panel {
+      background: var(--panel);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel-header {
+      padding: 10px 16px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+    .panel-header .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ══════════════════════════════════════
+       PANEL A — Video (top-left)
+    ══════════════════════════════════════ */
+    .video-panel {
+      grid-column: 1;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .video-wrap {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: #1a1a22;
+      border-radius: calc(var(--radius) - 2px);
+      overflow: hidden;
+      margin: 0 8px 8px;
+    }
+
+    #videoStream {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .video-info-overlay {
+      position: absolute;
+      top: 10px; left: 10px;
+      display: flex; flex-direction: column; gap: 5px;
+      pointer-events: none;
+    }
+    .vid-badge {
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.67rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      backdrop-filter: blur(6px);
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+    }
+    .vid-badge.live { color:#f87171; }
+
+    .no-stream {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px;
+      color: #888;
+      font-size: 0.85rem;
+    }
+    .no-stream-icon { font-size: 2.2rem; opacity: 0.35; }
+
+    /* ══════════════════════════════════════
+       PANEL B — Info/Speed (top-right)
+    ══════════════════════════════════════ */
+    .info-panel {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    /* detection chips row */
+    .detection-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .det-chip {
+      background: var(--panel2);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .det-chip-icon { font-size: 1.2rem; }
+    .det-chip-label { color: var(--text2); font-size: 0.62rem; font-weight: 600; }
+    .det-chip-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      margin-left: auto;
+    }
+
+    /* Speed limit card */
+    .speed-limit-card {
+      background: var(--panel2);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .speed-sign {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: #fff;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      transition: all 0.4s;
+    }
+    .speed-sign-label { font-size: 0.42rem; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1; }
+    .speed-sign-num   { font-size: 1.3rem;  font-weight: 900; color: #111; line-height: 1; font-family: 'JetBrains Mono', monospace; }
+    .speed-sign.active { box-shadow: 0 0 0 3px rgba(239,68,68,0.6), 0 0 18px rgba(239,68,68,0.3); }
+    .speed-sign.stop-sign { background: #e00; border-color: #e00; }
+    .speed-sign.stop-sign .speed-sign-label,
+    .speed-sign.stop-sign .speed-sign-num { color: #fff; }
+
+    .speed-info { flex: 1; min-width: 0; }
+    .speed-info-title { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 2px; }
+    .speed-limit-source { font-size: 0.65rem; color: var(--muted); }
+    #signAlert { padding: 3px 8px; border-radius: 6px; font-size: 0.64rem; font-weight: 700;
+      background: rgba(239,68,68,0.12); color: #ef4444; display: none; margin-top: 4px; }
+    #signAlert.show { display: inline-block; }
+
+    .tl-row { display:flex; align-items:center; gap:6px; padding:4px 0 0; }
+    .tl-label { font-size: 0.62rem; color: var(--muted); font-weight: 600; }
+    .tl-dot { width:9px; height:9px; border-radius:50%; background:var(--muted); transition:background 0.4s, box-shadow 0.4s; }
+    .tl-dot.active-green  { background:var(--green); box-shadow:0 0 6px var(--green); }
+    .tl-dot.active-red    { background:var(--red);   box-shadow:0 0 6px var(--red); }
+    .tl-dot.active-yellow { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+    #tlText { font-size: 0.65rem; color: var(--text2); }
+
+    /* Speed input */
+    .speed-input-card {
+      background: var(--panel2);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      flex-shrink: 0;
+    }
+    .speed-input-title { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 8px; }
+    .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .speed-number-input {
+      flex: 1;
+      background: rgba(255,255,255,0.6);
+      border: none;
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      outline: none;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+    .speed-number-input::-webkit-outer-spin-button,
+    .speed-number-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .speed-number-input:focus { box-shadow: 0 0 0 2px rgba(0,229,255,0.4); }
+    .kmh-label { font-size: 0.75rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
+
+    .limit-input-row { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .limit-input-label { font-size: 0.62rem; color: var(--text2); font-weight: 600; }
+    .limit-mini-input {
+      width: 60px; background: rgba(255,255,255,0.6); border: none; border-radius: 8px;
+      color: var(--text); font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem; font-weight: 700; padding: 4px 8px;
+      outline: none; text-align: center; -moz-appearance: textfield;
+    }
+    .limit-mini-input::-webkit-outer-spin-button,
+    .limit-mini-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .set-limit-btn {
+      padding: 4px 12px; border-radius: 8px; border: none;
+      background: rgba(0,0,0,0.1); color: var(--text2);
+      font-family: 'Outfit', sans-serif; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .set-limit-btn:hover { background: rgba(0,0,0,0.18); }
+
+    /* Speed status bar */
+    .speed-status-container { border-radius: 10px; overflow: hidden; }
+    .speed-status-bar { height: 5px; background: var(--green); transition: width 0.5s ease, background 0.4s; width: 50%; }
+    .speed-status-msg {
+      padding: 7px 12px; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.03em; display: flex; align-items: center; gap: 7px;
+      background: rgba(0,0,0,0.06); transition: background 0.4s;
+      border-radius: 0 0 10px 10px;
+    }
+    .speed-status-msg .status-icon { font-size: 0.95rem; }
+
+    .status-ok     .speed-status-bar { background: var(--green); }
+    .status-ok     .speed-status-msg { color: #16a34a; }
+    .status-slow   .speed-status-bar { background: var(--purple); }
+    .status-slow   .speed-status-msg { color: #7c3aed; }
+    .status-warn   .speed-status-bar { background: var(--amber); }
+    .status-warn   .speed-status-msg { color: #d97706; }
+    .status-danger .speed-status-bar { background: var(--red); animation: pulseRed 0.7s ease-in-out infinite; }
+    .status-danger .speed-status-msg { color: #dc2626; }
+    .status-stop   .speed-status-bar { background: var(--red); width:100% !important; animation:pulseRed 0.5s ease-in-out infinite; }
+    .status-stop   .speed-status-msg { color: #dc2626; }
+
+    @keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    /* ══════════════════════════════════════
+       PANEL C — Controls (bottom-left)
+    ══════════════════════════════════════ */
+    .controls-panel {
+      grid-column: 1;
+      grid-row: 2;
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ctrl-label { font-size: 0.67rem; font-weight: 600; letter-spacing: 0.06em; color: var(--text2); text-transform: uppercase; flex-shrink: 0; }
+    #videoSelect {
+      flex: 1;
+      background: var(--panel2);
+      border: none;
+      border-radius: 10px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.78rem;
+      outline: none;
+    }
+    .ctrl-btn {
+      padding: 7px 16px;
+      border-radius: 12px;
+      border: none;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .ctrl-btn:hover { transform: translateY(-1px); }
+    .ctrl-btn:active { transform: scale(0.95); }
+    .btn-start  { background: rgba(255,107,0,0.15);  color: #e05500; }
+    .btn-start:hover  { background: rgba(255,107,0,0.25); }
+    .btn-stop   { background: rgba(239,68,68,0.12);  color: #dc2626; }
+    .btn-stop:hover   { background: rgba(239,68,68,0.22); }
+    .btn-webcam { background: rgba(34,197,94,0.12);  color: #16a34a; }
+    .btn-webcam:hover { background: rgba(34,197,94,0.22); }
+    .btn-webcam.active { background: rgba(34,197,94,0.22); animation: pulseGreen 1.2s ease-in-out infinite; }
+    @keyframes pulseGreen {
+      0%,100% { box-shadow: 0 0 0 rgba(34,197,94,0.2); }
+      50%      { box-shadow: 0 0 14px rgba(34,197,94,0.5); }
+    }
+    .upload-label {
+      padding: 7px 14px; border-radius: 12px; border: none;
+      background: rgba(139,92,246,0.12); color: #7c3aed;
+      font-size: 0.74rem; font-weight: 700; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .upload-label:hover { background: rgba(139,92,246,0.22); }
+    #uploadInput { display: none; }
+
+    /* ══════════════════════════════════════
+       PANEL D — Bottom-right: speed input + BOT
+    ══════════════════════════════════════ */
+    .bottom-right {
+      grid-column: 2;
+      grid-row: 2;
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: visible;
+    }
+
+    /* mini speed input inside bottom-right */
+    .mini-speed-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ══════════════════════════════════════
+       ROBOT — fixed overlay, bottom-right
+    ══════════════════════════════════════ */
+    .robot-widget {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 80px;
+      height: 80px;
+      background: #b0b0ba;          /* grey outer shell */
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+      z-index: 90;
+      cursor: default;
+    }
+
+    /* black inner face */
+    .bot-face {
+      width: 60px;
+      height: 60px;
+      background: #111118;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+    }
+
+    /* cyan eyes — pill shaped */
+    .robot-eye {
+      width: 18px;
+      height: 13px;
+      background: var(--cyan);
+      border-radius: 999px;
+      box-shadow: 0 0 10px var(--cyan), 0 0 24px rgba(0,229,255,0.55);
+      transition: background 0.3s, box-shadow 0.3s;
+      animation: eyeBlink 4s ease-in-out infinite;
+    }
+    .robot-eye:nth-child(2) { animation-delay: 0.08s; }
+
+    @keyframes eyeBlink {
+      0%, 92%, 100% { transform: scaleY(1); }
+      95%            { transform: scaleY(0.08); }
+    }
+
+    /* thought bubble — fixed, floats above robot */
+    #botThought {
+      position: fixed;
+      bottom: 108px;
+      right: 16px;
+      padding: 7px 14px;
+      border-radius: 14px;
+      background: rgba(15,15,25,0.92);
+      font-size: 0.69rem;
+      color: var(--cyan);
+      letter-spacing: 0.03em;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 100;
+      max-width: 200px;
+      text-align: right;
+      line-height: 1.4;
+    }
+    #botThought.show { opacity: 1; }
+
+    /* bot emotion badge — tiny pill above robot */
+    #botBadge {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.5rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.25);
+      color: #666688;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ── Alert panel ── */
+    #alertPanel {
+      position: fixed; top:50%; left:50%;
+      transform: translate(-50%,-50%) scale(0.85);
+      background: rgba(255,245,245,0.96);
+      border: 2px solid rgba(239,68,68,0.5);
+      border-radius: 20px; padding: 20px 36px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 999;
+      box-shadow: 0 8px 40px rgba(239,68,68,0.25);
+    }
+    #alertPanel.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+    #alertPanel .alert-icon  { font-size: 2.5rem; display:block; margin-bottom:6px; }
+    #alertPanel .alert-title { font-size: 1rem; font-weight: 900; color: #dc2626; letter-spacing: 0.05em; }
+    #alertPanel .alert-sub   { font-size: 0.75rem; color: #ef4444; margin-top: 4px; }
+
+    /* ── Upload toast ── */
+    #uploadToast {
+      position: fixed; bottom:20px; right:20px;
+      background: rgba(34,197,94,0.15);
+      color: #16a34a;
+      padding: 8px 18px; border-radius: 12px;
+      font-size: 0.76rem; font-weight: 700;
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 1000;
+    }
+    #uploadToast.show { opacity:1; transform:translateY(0); }
+
+    /* ── Live badge ── */
+    #liveBadge { display:none; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 99px; }
+
+    /* hidden emotion label (kept for JS compat) */
+    #botEmotionLabel { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ════ HEADER ════ -->
+  <header>
+    <div class="logo">PIXEL OS <span style="font-size:0.7rem;font-weight:600;opacity:0.55;letter-spacing:0.05em;">ADMIN</span></div>
+    <div class="header-right">
+      <a href="/user" target="_blank" style="padding:4px 14px;border-radius:999px;font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(0,229,255,0.15);color:#0099bb;text-decoration:none;transition:background 0.2s;" onmouseover="this.style.background='rgba(0,229,255,0.28)'" onmouseout="this.style.background='rgba(0,229,255,0.15)'">👤 User View</a>
+      <span id="statusBadge" class="badge">Idle</span>
+      <span id="botEmotionLabel" class="badge info"></span>
+    </div>
+  </header>
+
+  <!-- ════ MAIN GRID ════ -->
+  <div class="main-grid">
+
+    <!-- ══ A: Video panel (top-left) ══ -->
+    <div class="panel video-panel">
+      <div class="panel-header">
+        <span class="dot"></span> Live Detection Feed
+        <span id="liveBadge" class="vid-badge live" style="margin-left:auto;">● REC</span>
+      </div>
+      <div class="video-wrap" id="videoWrap">
+        <img id="videoStream" src="" alt="stream" style="display:none;" />
+        <div class="no-stream" id="noStream">
+          <span class="no-stream-icon">🎥</span>
+          <span>Select a video and press <strong style="color:var(--accent)">Start</strong></span>
+        </div>
+        <div class="video-info-overlay" id="videoOverlay" style="display:none">
+          <span class="vid-badge live">● LIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ B: Info panel (top-right) ══ -->
+    <div class="info-panel">
+
+      <!-- Detection chips -->
+      <div class="detection-row">
+        <div class="det-chip">
+          <span class="det-chip-icon">🚗</span>
+          <div>
+            <div class="det-chip-label">Vehicles</div>
+          </div>
+          <span class="det-chip-val" id="vehicleCount">0</span>
+        </div>
+        <div class="det-chip">
+          <span class="det-chip-icon">👤</span>
+          <div>
+            <div class="det-chip-label">People</div>
+          </div>
+          <span class="det-chip-val" id="personCount">0</span>
+        </div>
+        <div class="det-chip">
+          <span class="det-chip-icon">🛑</span>
+          <div>
+            <div class="det-chip-label">Sign</div>
+          </div>
+          <span class="det-chip-val" id="signVal" style="font-size:.78rem">--</span>
+        </div>
+        <div class="det-chip">
+          <span class="det-chip-icon">🚦</span>
+          <div>
+            <div class="det-chip-label">Traffic Lt.</div>
+          </div>
+          <span class="det-chip-val" id="tlVal" style="font-size:.78rem">--</span>
+        </div>
+      </div>
+
+      <!-- Speed limit card -->
+      <div class="speed-limit-card">
+        <div class="speed-sign" id="speedSign">
+          <span class="speed-sign-label">SPEED</span>
+          <span class="speed-sign-num" id="speedSignNum">--</span>
+        </div>
+        <div class="speed-info">
+          <div class="speed-info-title">Detected Speed Limit</div>
+          <div class="speed-limit-source" id="limitSource">Waiting for detection…</div>
+          <div style="margin-top:4px">
+            <span id="signAlert">🛑 STOP SIGN DETECTED</span>
+          </div>
+          <div class="tl-row">
+            <span class="tl-label">Traffic light:</span>
+            <div class="tl-dot" id="tlDot"></div>
+            <span id="tlText">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed input -->
+      <div class="speed-input-card">
+        <div class="speed-input-title">🚀 Your Current Speed</div>
+
+        <div class="input-row">
+          <input type="number" class="speed-number-input" id="manualSpeed"
+                 placeholder="0" min="0" max="300"
+                 oninput="onSpeedInput()" />
+          <span class="kmh-label">km/h</span>
+        </div>
+
+        <div class="limit-input-row">
+          <span class="limit-input-label">Override limit (km/h):</span>
+          <input type="number" class="limit-mini-input" id="limitOverride"
+                 placeholder="--" min="0" max="200" />
+          <button class="set-limit-btn" onclick="setManualLimit()">Set</button>
+        </div>
+
+        <div class="speed-status-container" id="speedStatusCont">
+          <div class="speed-status-bar" id="speedBar" style="width:0%"></div>
+          <div class="speed-status-msg" id="speedMsg">
+            <span class="status-icon">🤖</span>
+            <span>Enter your speed to get feedback…</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /info-panel -->
+
+    <!-- ══ C: Controls (bottom-left) ══ -->
+    <div class="controls-panel">
+      <span class="ctrl-label">Source</span>
+      <select id="videoSelect">
+        {% if videos %}
+          {% for v in videos %}
+            <option value="{{ v }}">{{ v }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">— Upload a video first —</option>
+        {% endif %}
+      </select>
+      <button class="ctrl-btn btn-start"  id="startBtn"  onclick="startStream()">▶ File</button>
+      <button class="ctrl-btn btn-webcam" id="webcamBtn" onclick="startWebcam()">📷 Webcam</button>
+      <button class="ctrl-btn btn-stop"   onclick="stopStream()">⏹ Stop</button>
+      <label class="upload-label" for="uploadInput">⬆ Upload</label>
+      <input type="file" id="uploadInput" accept="video/*" onchange="uploadVideo(this)" />
+    </div>
+
+    <!-- ══ D: Bottom-right — live status ══ -->
+    <div class="bottom-right">
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;">
+        <div style="font-size:0.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);">Live Status</div>
+        <div id="miniStatus" style="font-size:0.76rem;color:var(--text2);">Waiting…</div>
+      </div>
+    </div>
+
+  </div><!-- /main-grid -->
+</div><!-- /shell -->
+
+<!-- ══ ROBOT — fixed overlay ══ -->
+<div class="robot-widget" id="robotWidget">
+  <span id="botBadge">Idle</span>
+  <div class="bot-face" id="robotFace">
+    <div class="robot-eye" id="eyeLeft"></div>
+    <div class="robot-eye" id="eyeRight"></div>
+  </div>
+</div>
+<div id="botThought">Watching the road…</div>
+
+<!-- Hidden eye container so window.eyes (GSAP animation) initialises -->
+<div class="eye-container" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;opacity:0;"></div>
+
+<!-- Alert panel -->
+<div id="alertPanel">
+  <span class="alert-icon" id="alertIcon">⚡</span>
+  <div class="alert-title" id="alertTitle">REDUCE SPEED!</div>
+  <div class="alert-sub"   id="alertSub">You are going too fast</div>
+</div>
+
+<!-- Upload toast -->
+<div id="uploadToast">✅ Video uploaded!</div>
+
+<!-- Eye animation -->
+<script src="/static/web-eye-animation.js"></script>
+
+<script>
+(function () {
+  /* ══════════════════════════════════════
+     GLOBALS
+  ══════════════════════════════════════ */
+  let lastSpeedLimit   = undefined;
+  let lastVehicleCount = 0;
+  let currentLimit     = null;
+  let manualSpeedVal   = 0;
+  let alertTimer       = null;
+  let thoughtTimer     = null;
+  let emotionCooldown  = false;
+  let isStreaming      = false;
+  let prevBotEmotion   = '';
+
+  const EMOTION_LABELS = {
+    joy:        '😄 Happy!',
+    excitement: '🤩 Excited!',
+    sleepy:     '😴 Too Slow…',
+    anger:      '😤 Slow Down!',
+    worried:    '😟 Careful!',
+    annoyed:    '😒 Traffic Jam',
+    love:       '🙂 Smooth',
+    surprise:   '😲 New Sign!',
+    focused:    '🎯 Watching…',
+    neutral:    '😐 Neutral',
+  };
+
+  /* ── Status badge ── */
+  const statusBadge = document.getElementById('statusBadge');
+  function setStatus(text, cls) {
+    statusBadge.textContent = text;
+    statusBadge.className   = 'badge ' + (cls || '');
+  }
+
+  /* ── Bot emotion ── */
+  function setBotEmotion(emotion, label) {
+    if (window.eyes) window.eyes.emotion(emotion);
+    if (emotion === prevBotEmotion && emotionCooldown) return;
+
+    prevBotEmotion = emotion;
+    const txt = label || EMOTION_LABELS[emotion] || emotion;
+    document.getElementById('botBadge').textContent = txt;
+
+    // Eyes are always cyan — no color changes
+    emotionCooldown = true;
+    setTimeout(() => { emotionCooldown = false; }, 1800);
+  }
+
+  /* ── Thought bubble ── */
+  function showThought(text, duration = 2800) {
+    const el = document.getElementById('botThought');
+    el.textContent = text;
+    el.classList.add('show');
+    if (thoughtTimer) clearTimeout(thoughtTimer);
+    thoughtTimer = setTimeout(() => el.classList.remove('show'), duration);
+  }
+
+  /* ── Alert ── */
+  function showAlert(icon, title, sub, duration = 2200) {
+    document.getElementById('alertIcon').textContent  = icon;
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertSub').textContent   = sub;
+    document.getElementById('alertPanel').classList.add('show');
+    if (alertTimer) clearTimeout(alertTimer);
+    alertTimer = setTimeout(() => {
+      document.getElementById('alertPanel').classList.remove('show');
+    }, duration);
+  }
+
+  /* ── Speed status UI ── */
+  function updateSpeedStatus(speed, limit) {
+    const cont = document.getElementById('speedStatusCont');
+    const bar  = document.getElementById('speedBar');
+    const msg  = document.getElementById('speedMsg');
+    const mini = document.getElementById('miniStatus');
+
+    cont.className = 'speed-status-container';
+
+    if (limit === null) {
+      bar.style.width = '0%';
+      msg.innerHTML   = '<span class="status-icon">🤖</span><span>Enter your speed to get feedback…</span>';
+      mini.textContent = 'No limit set';
+      return;
+    }
+    if (limit === 0) {
+      if (speed > 0) {
+        cont.classList.add('status-stop');
+        bar.style.width = '100%';
+        msg.innerHTML   = '<span class="status-icon">🛑</span><span>STOP! You must not move.</span>';
+        mini.textContent = '🛑 STOP violation!';
+      } else {
+        cont.classList.add('status-ok');
+        bar.style.width = '2%';
+        msg.innerHTML   = '<span class="status-icon">✅</span><span>Stopped correctly.</span>';
+        mini.textContent = '✅ Stopped correctly';
+      }
+      return;
+    }
+
+    const diff = speed - limit;
+    const pct  = Math.min(100, Math.round((speed / limit) * 100));
+    bar.style.width = pct + '%';
+
+    if (diff > 20) {
+      cont.classList.add('status-danger');
+      msg.innerHTML   = `<span class="status-icon">🚨</span><span>WAY too fast! Reduce by ${diff} km/h!</span>`;
+      mini.textContent = `🚨 ${diff} km/h over limit`;
+    } else if (diff > 5) {
+      cont.classList.add('status-warn');
+      msg.innerHTML   = `<span class="status-icon">⚠️</span><span>Slightly over limit (+${diff} km/h). Ease off!</span>`;
+      mini.textContent = `⚠️ +${diff} km/h over`;
+    } else if (Math.abs(diff) <= 5) {
+      cont.classList.add('status-ok');
+      msg.innerHTML   = `<span class="status-icon">✅</span><span>Perfect! You're right on the limit.</span>`;
+      mini.textContent = '✅ Perfect speed!';
+    } else if (diff < -20) {
+      cont.classList.add('status-slow');
+      msg.innerHTML   = `<span class="status-icon">😴</span><span>Very slow. Limit is ${limit} km/h.</span>`;
+      mini.textContent = `😴 Very slow (${limit} km/h limit)`;
+    } else {
+      cont.classList.add('status-slow');
+      msg.innerHTML   = `<span class="status-icon">🙂</span><span>A bit slow — limit is ${limit} km/h.</span>`;
+      mini.textContent = `🙂 Limit: ${limit} km/h`;
+    }
+  }
+
+  /* ── Bot emotion logic ── */
+  let boredToast = false;
+  function evaluateBotEmotion(speed, limit, vehicleCount) {
+    if (vehicleCount > 8 && vehicleCount > lastVehicleCount + 2) {
+      setBotEmotion('annoyed'); showThought('Ugh… traffic jam again! 😒'); boredToast = true; return;
+    }
+    if (vehicleCount > 5 && !boredToast && prevBotEmotion !== 'annoyed') {
+      setBotEmotion('focused'); showThought('Lots of vehicles around…');
+    }
+    if (vehicleCount <= 3) boredToast = false;
+
+    if (limit === null) {
+      if (speed === 0 && prevBotEmotion !== 'sleepy') { setBotEmotion('sleepy'); showThought('Waiting… enter your speed 😴'); }
+      return;
+    }
+    if (limit === 0) {
+      if (speed > 0) { setBotEmotion('anger'); showAlert('🛑','STOP!',`Stop sign! You're going ${speed} km/h.`,2500); showThought('STOP!! Red sign ahead! 😤'); }
+      else { setBotEmotion('neutral'); showThought('Good — staying stopped. 👍'); }
+      return;
+    }
+
+    const diff = speed - limit;
+    if (diff > 20)       { setBotEmotion('anger');   showAlert('⚡','REDUCE SPEED!',`You're ${diff} km/h over the limit!`,2200); showThought(`Slow down! ${diff} km/h over limit! 😤`); }
+    else if (diff > 5)   { setBotEmotion('worried'); showThought(`Careful! ${diff} km/h over limit ⚠️`); }
+    else if (Math.abs(diff) <= 5) {
+      if (prevBotEmotion !== 'joy' && prevBotEmotion !== 'excitement') {
+        setBotEmotion(Math.random() > 0.5 ? 'joy' : 'excitement');
+        showThought('Perfect speed! Great driving! 🎉');
+      }
+    }
+    else if (diff < -20) { setBotEmotion('sleepy'); showThought(`So slow… ${Math.abs(diff)} km/h under limit 😴`); }
+    else if (diff < -5)  { setBotEmotion('love');   showThought('Smooth ride, maybe go a little faster 🙂'); }
+  }
+
+  /* ── Speed limit UI ── */
+  function updateSpeedLimitUI(limit, ocrLimit) {
+    const sign    = document.getElementById('speedSign');
+    const signNum = document.getElementById('speedSignNum');
+    const source  = document.getElementById('limitSource');
+    const alert   = document.getElementById('signAlert');
+    sign.className = 'speed-sign';
+    if (limit === null) {
+      signNum.textContent = '--'; source.textContent = 'Waiting for detection…'; alert.classList.remove('show');
+    } else if (limit === 0) {
+      signNum.textContent = 'STOP'; sign.classList.add('stop-sign');
+      source.textContent = 'Stop sign detected by camera'; alert.classList.add('show');
+    } else {
+      signNum.textContent = limit; sign.classList.add('active');
+      if (ocrLimit !== null && ocrLimit === limit) {
+        source.innerHTML = '📷 Read by OCR <span style="color:var(--green)">(🇮🇳 Indian sign)</span>';
+      } else {
+        source.textContent = 'Manually set via override';
+      }
+      alert.classList.remove('show');
+    }
+  }
+
+  /* ── Poll backend ── */
+  async function pollState() {
+    try { const res = await fetch('/state'); processState(await res.json()); } catch (_) {}
+  }
+
+  function processState(state) {
+    document.getElementById('vehicleCount').textContent = state.vehicle_count;
+    document.getElementById('personCount').textContent  = state.person_count;
+
+    const sigEl = document.getElementById('signVal');
+    if (state.sign_detected === 'stop') { sigEl.textContent = 'STOP'; sigEl.style.color = '#ef4444'; }
+    else { sigEl.textContent = '--'; sigEl.style.color = ''; }
+
+    const tlDot = document.getElementById('tlDot');
+    const tlText = document.getElementById('tlText');
+    const tlVal  = document.getElementById('tlVal');
+    tlDot.className = 'tl-dot';
+    if (state.traffic_light === 'Detected') {
+      tlDot.classList.add('active-green'); tlText.textContent = 'Detected'; tlVal.textContent = '🟢';
+    } else { tlText.textContent = '—'; tlVal.textContent = '--'; }
+
+    const newLimit = state.speed_limit;
+    if (lastSpeedLimit !== undefined && newLimit !== lastSpeedLimit) {
+      if (window.eyes) window.eyes.emotion('surprise');
+      showThought(`Speed limit updated: ${newLimit === null ? '--' : newLimit === 0 ? 'STOP' : newLimit + ' km/h'} 😲`);
+    }
+    lastSpeedLimit = newLimit; currentLimit = newLimit;
+    updateSpeedLimitUI(newLimit, state.ocr_limit ?? null);
+    setStatus(state.running ? '🔴 Detecting' : 'Idle', state.running ? 'danger' : '');
+    evaluateBotEmotion(manualSpeedVal, currentLimit, state.vehicle_count);
+    updateSpeedStatus(manualSpeedVal, currentLimit);
+    lastVehicleCount = state.vehicle_count;
+  }
+
+  /* ── Manual speed input ── */
+  let speedSyncTimer = null;
+  window.onSpeedInput = function () {
+    const v = parseInt(document.getElementById('manualSpeed').value, 10);
+    manualSpeedVal = isNaN(v) ? 0 : Math.max(0, v);
+    evaluateBotEmotion(manualSpeedVal, currentLimit, lastVehicleCount);
+    updateSpeedStatus(manualSpeedVal, currentLimit);
+    // Debounce: push speed to backend so user dashboard can read it
+    if (speedSyncTimer) clearTimeout(speedSyncTimer);
+    speedSyncTimer = setTimeout(() => {
+      fetch('/set_manual_speed', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ speed: manualSpeedVal })
+      }).catch(() => {});
+    }, 300);
+  };
+
+  /* ── Manual limit override ── */
+  window.setManualLimit = async function () {
+    const v = document.getElementById('limitOverride').value;
+    const limit = v === '' ? null : parseInt(v, 10);
+    try {
+      await fetch('/set_speed_limit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({limit}) });
+    } catch (_) {}
+    currentLimit = limit;
+    updateSpeedLimitUI(limit);
+    if (window.eyes) window.eyes.emotion('surprise');
+    showThought(`Speed limit set: ${limit === null ? 'none' : limit + ' km/h'} ✅`);
+    evaluateBotEmotion(manualSpeedVal, currentLimit, lastVehicleCount);
+    updateSpeedStatus(manualSpeedVal, currentLimit);
+  };
+
+  /* ── Stream controls ── */
+  function activateStreamUI(label) {
+    const img = document.getElementById('videoStream');
+    img.src   = '/stream?' + Date.now();
+    img.style.display = 'block';
+    document.getElementById('noStream').style.display     = 'none';
+    document.getElementById('videoOverlay').style.display = '';
+    document.getElementById('liveBadge').style.display    = '';
+    isStreaming = true;
+    setStatus('🔴 Detecting', 'danger');
+    if (window.eyes) window.eyes.emotion('excitement');
+    showThought(label);
+  }
+
+  window.startStream = async function () {
+    const sel = document.getElementById('videoSelect');
+    const video = sel.value;
+    if (!video) { alert('Please select a video first.'); return; }
+    try {
+      const res = await fetch('/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:'file',video}) });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+    } catch (e) { console.error(e); return; }
+    document.getElementById('webcamBtn').classList.remove('active');
+    activateStreamUI('Loading video… eyes on the road! 🎬');
+  };
+
+  window.startWebcam = async function () {
+    const btn = document.getElementById('webcamBtn');
+    if (btn.classList.contains('active')) { window.stopStream(); return; }
+    try {
+      const res = await fetch('/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:'webcam'}) });
+      const data = await res.json();
+      if (data.error) { alert('Webcam error: ' + data.error); return; }
+    } catch (e) { console.error(e); return; }
+    btn.classList.add('active'); btn.textContent = '🔴 Live';
+    activateStreamUI('Webcam ON — watching live! 📷');
+  };
+
+  window.stopStream = async function () {
+    try { await fetch('/stop'); } catch (_) {}
+    const img = document.getElementById('videoStream');
+    img.src = ''; img.style.display = 'none';
+    document.getElementById('noStream').style.display     = '';
+    document.getElementById('videoOverlay').style.display = 'none';
+    document.getElementById('liveBadge').style.display    = 'none';
+    isStreaming = false; setStatus('Idle', '');
+    const wb = document.getElementById('webcamBtn');
+    wb.classList.remove('active'); wb.textContent = '📷 Webcam';
+    setBotEmotion('sleepy'); showThought('Resting… 😴');
+  };
+
+  /* ── Upload ── */
+  window.uploadVideo = async function (input) {
+    const file = input.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('video', file);
+    try {
+      const res = await fetch('/upload', { method:'POST', body:fd });
+      const data = await res.json();
+      if (data.status === 'uploaded') {
+        const sel = document.getElementById('videoSelect');
+        const opt = new Option(data.filename, data.filename);
+        sel.appendChild(opt); sel.value = data.filename;
+        const toast = document.getElementById('uploadToast');
+        toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500);
+        setBotEmotion('joy'); showThought('New video uploaded! 🎉');
+      }
+    } catch (e) { console.error(e); }
+    input.value = '';
+  };
+
+  /* ── Idle bot ── */
+  const IDLE_THOUGHTS = ['Scanning the road… 👀','Any traffic signs ahead?','Watching out for you 🤖','Ready when you are!','All clear so far…','Looking both ways… 👁️'];
+  let idleIdx = 0;
+  setInterval(() => {
+    if (!isStreaming && !emotionCooldown) {
+      showThought(IDLE_THOUGHTS[idleIdx++ % IDLE_THOUGHTS.length], 3000);
+      if (window.startIdleAnimation) window.startIdleAnimation();
+    }
+  }, 5000);
+
+  /* ── Poll ── */
+  setInterval(pollState, 600);
+  setTimeout(pollState, 800);
+  setTimeout(() => {
+    if (window.eyes) window.eyes.emotion('neutral');
+    showThought('Hello! I\'m your Car Bot 🤖 Ready to drive!');
+  }, 1200);
+
+  /* ── Cursor-tracking eyes ── */
+  (function () {
+    const widget  = document.getElementById('robotWidget');
+    const eyeL    = document.getElementById('eyeLeft');
+    const eyeR    = document.getElementById('eyeRight');
+    const MAX_PX  = 3;   // max travel in pixels
+
+    document.addEventListener('mousemove', (e) => {
+      const rect   = widget.getBoundingClientRect();
+      const cx     = rect.left + rect.width  / 2;
+      const cy     = rect.top  + rect.height / 2;
+      const dx     = e.clientX - cx;
+      const dy     = e.clientY - cy;
+      const dist   = Math.sqrt(dx * dx + dy * dy) || 1;
+      // Normalise and clamp to MAX_PX
+      const nx     = (dx / dist) * Math.min(dist / 60, 1) * MAX_PX;
+      const ny     = (dy / dist) * Math.min(dist / 60, 1) * MAX_PX;
+      const t      = `translate(${nx.toFixed(2)}px, ${ny.toFixed(2)}px)`;
+      eyeL.style.transform = t;
+      eyeR.style.transform = t;
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>

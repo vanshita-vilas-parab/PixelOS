@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PIXEL OS</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Helvetica+Neue:wght@100;200;300&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --white: #ffffff;
+      --off-white: #f7f7f5;
+      --light-gray: #e8e8e6;
+      --mid-gray: #b0b0ae;
+      --dark-gray: #3a3a38;
+      --text: #1a1a18;
+      --ring: rgba(0, 0, 0, 0.06);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--white);
+      color: var(--text);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 200;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 32px 56px;
+      background: transparent;
+      mix-blend-mode: normal;
+    }
+
+    .nav-logo {
+      font-size: 13px;
+      letter-spacing: 0.35em;
+      color: var(--dark-gray);
+      font-weight: 300;
+      text-transform: uppercase;
+      opacity: 0;
+      animation: fadeIn 1.2s ease 0.3s forwards;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 48px;
+      list-style: none;
+      opacity: 0;
+      animation: fadeIn 1.2s ease 0.5s forwards;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      font-size: 13px;
+      letter-spacing: 0.15em;
+      color: var(--dark-gray);
+      font-weight: 300;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--text);
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    /* ── HERO SECTION ── */
+    .hero {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+      background: #0a0a0a url('/images/bg1.png') center center / cover no-repeat;
+    }
+
+    /* Dark gradient overlay — stays BELOW text + CTA (z-index) */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(to bottom,
+          rgba(0, 0, 0, 0.08) 0%,
+          rgba(0, 0, 0, 0.0) 40%,
+          rgba(0, 0, 0, 0.55) 80%,
+          rgba(0, 0, 0, 0.78) 100%);
+      pointer-events: none;
+    }
+
+    /* Hero bottom text overlay — above gradient */
+    .hero-overlay-text {
+      position: relative;
+      z-index: 2;
+      padding: 0 8vw 72px;
+      opacity: 0;
+      animation: slideUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+    }
+
+    .hero-overlay-text h1 {
+      font-size: clamp(36px, 5.5vw, 78px);
+      font-weight: 100;
+      letter-spacing: 0.45em;
+      color: rgba(255, 255, 255, 0.95);
+      line-height: 1;
+      text-transform: uppercase;
+      font-family: 'Cormorant Garamond', serif;
+      margin-bottom: 16px;
+    }
+
+    .hero-overlay-text .tagline {
+      font-size: 12px;
+      letter-spacing: 0.3em;
+      color: rgba(255, 255, 255, 0.55);
+      text-transform: uppercase;
+      font-weight: 300;
+    }
+
+    /* Primary CTA — always readable on hero */
+    .hero-cta {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      background: rgba(0, 0, 0, 0.45);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      transition: background 0.25s ease, transform 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      z-index: 3;
+    }
+
+    .hero-cta:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #ffffff;
+      transform: translateY(-2px);
+    }
+
+    .hero-cta:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+    }
+
+    /* Scroll indicator */
+    .scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      right: 8vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      animation: fadeIn 1s ease 2s forwards;
+      z-index: 2;
+    }
+
+    .scroll-hint span {
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      color: rgba(255, 255, 255, 0.45);
+      text-transform: uppercase;
+    }
+
+    .scroll-line {
+      width: 1px;
+      height: 48px;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+
+    /* ── FEATURES SECTIONS ── */
+    .feature-section {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 120px 10vw;
+      overflow: hidden;
+    }
+
+    .feature-section:nth-child(odd) {
+      background: var(--off-white);
+    }
+
+    .feature-section:nth-child(even) {
+      background: var(--white);
+    }
+
+    .feature-content {
+      max-width: 480px;
+      z-index: 5;
+    }
+
+    .feature-number {
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      color: var(--mid-gray);
+      text-transform: uppercase;
+      margin-bottom: 32px;
+      font-weight: 300;
+    }
+
+    .feature-title {
+      font-size: clamp(32px, 4vw, 56px);
+      font-weight: 100;
+      line-height: 1.15;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      margin-bottom: 28px;
+      font-family: 'Cormorant Garamond', serif;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      line-height: 1.9;
+      color: var(--mid-gray);
+      font-weight: 300;
+      letter-spacing: 0.02em;
+      max-width: 380px;
+    }
+
+    .feature-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 48px;
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--dark-gray);
+      text-decoration: none;
+      font-weight: 300;
+      transition: gap 0.3s ease;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    .feature-cta:hover {
+      gap: 20px;
+    }
+
+    .feature-cta-line {
+      width: 40px;
+      height: 1px;
+      background: var(--dark-gray);
+      transition: width 0.3s ease;
+    }
+
+    .feature-cta:hover .feature-cta-line {
+      width: 60px;
+    }
+
+    /* Feature decorative elements */
+    .feature-bg-number {
+      position: absolute;
+      right: 5vw;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: clamp(180px, 28vw, 380px);
+      font-weight: 100;
+      color: var(--light-gray);
+      line-height: 1;
+      font-family: 'Cormorant Garamond', serif;
+      user-select: none;
+      pointer-events: none;
+      letter-spacing: -0.05em;
+    }
+
+    /* ── SPECS SECTION ── */
+    .specs-section {
+      background: var(--text);
+      padding: 140px 10vw;
+      color: var(--white);
+    }
+
+    .specs-heading {
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      color: var(--mid-gray);
+      text-transform: uppercase;
+      margin-bottom: 64px;
+      font-weight: 300;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+
+    .spec-item {
+      padding: 56px 40px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .spec-value {
+      font-size: clamp(36px, 5vw, 64px);
+      font-weight: 100;
+      line-height: 1;
+      font-family: 'Cormorant Garamond', serif;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .spec-unit {
+      font-size: 16px;
+      font-weight: 300;
+      vertical-align: super;
+      letter-spacing: 0.05em;
+    }
+
+    .spec-label {
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      font-weight: 300;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 64px 10vw;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--light-gray);
+    }
+
+    footer .logo-small {
+      font-size: 12px;
+      letter-spacing: 0.4em;
+      color: var(--mid-gray);
+      text-transform: uppercase;
+      font-weight: 300;
+    }
+
+    footer .footer-links {
+      display: flex;
+      gap: 40px;
+      list-style: none;
+    }
+
+    footer .footer-links a {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--mid-gray);
+      text-decoration: none;
+      text-transform: uppercase;
+      font-weight: 300;
+      transition: color 0.3s;
+    }
+
+    footer .footer-links a:hover {
+      color: var(--text);
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes scrollPulse {
+
+      0%,
+      100% {
+        opacity: 0.4;
+        transform: scaleY(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scaleY(1.1);
+      }
+    }
+
+    /* Reveal on scroll */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 {
+      transition-delay: 0.1s;
+    }
+
+    .reveal-delay-2 {
+      transition-delay: 0.2s;
+    }
+
+    .reveal-delay-3 {
+      transition-delay: 0.35s;
+    }
+
+    /* ── CAR SVG PLACEHOLDER (since no actual car image) ── */
+    .car-svg-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── NAV ── -->
+  <nav>
+    <div class="nav-logo">Pixel OS</div>
+    <ul class="nav-links">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#about">Features</a></li>
+      <li><a href="#start">Get Started</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── HERO ── -->
+  <section class="hero" id="home">
+
+    <div class="hero-overlay-text">
+      <h1>Pixel&nbsp;OS</h1>
+      <p class="tagline">ADAS Companion Dashboard — See Smarter. Drive Safer.</p>
+      <a class="hero-cta" href="/user">Enter driver dashboard</a>
+    </div>
+
+    <div class="scroll-hint">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- ── FEATURE 1 ── -->
+  <section class="feature-section" id="about">
+    <div class="feature-content">
+      <p class="feature-number reveal">01 — Object Detection</p>
+      <h2 class="feature-title reveal reveal-delay-1">YOLOv8.<br>Real-time. Every frame.</h2>
+      <p class="feature-desc reveal reveal-delay-2">
+        <code style="font-size:12px;letter-spacing:0.05em;color:var(--mid-gray)">detect.py</code> runs Ultralytics
+        YOLOv8 on each camera frame, detecting vehicles and obstacles with bounding boxes and heuristic depth estimates
+        from bounding-box height. Annotated frames stream directly to the Flask web dashboard at <code
+          style="font-size:12px;color:var(--mid-gray)">localhost:5000</code>.
+      </p>
+      <button class="feature-cta reveal reveal-delay-3">
+        View detect.py <div class="feature-cta-line"></div>
+      </button>
+    </div>
+    <div class="feature-bg-number reveal" style="transition-delay:0s">01</div>
+  </section>
+
+  <!-- ── FEATURE 2 ── -->
+  <section class="feature-section">
+    <div class="feature-content" style="margin-left: auto; text-align: right;">
+      <p class="feature-number reveal">02 — Lane Detection</p>
+      <h2 class="feature-title reveal reveal-delay-1">Canny edges.<br>Hough lines. Live alerts.</h2>
+      <p class="feature-desc reveal reveal-delay-2" style="margin-left:auto">
+        <code style="font-size:12px;letter-spacing:0.05em;color:var(--mid-gray)">lane.py</code> applies Canny edge
+        detection and Hough line transforms on every incoming frame to track lane geometry. When the vehicle drifts
+        outside detected boundaries, the dashboard triggers an immediate visual lane-keeping warning.
+      </p>
+      <button class="feature-cta reveal reveal-delay-3" style="margin-left:auto">
+        View lane.py <div class="feature-cta-line"></div>
+      </button>
+    </div>
+    <div class="feature-bg-number reveal" style="transition-delay:0s; left:5vw; right:auto">02</div>
+  </section>
+
+  <!-- ── FEATURE 3 ── -->
+  <section class="feature-section">
+    <div class="feature-content">
+      <p class="feature-number reveal">03 — Traffic Sign OCR</p>
+      <h2 class="feature-title reveal reveal-delay-1">Indian speed limits.<br>Read locally. No cloud.</h2>
+      <p class="feature-desc reveal reveal-delay-2">
+        <code style="font-size:12px;letter-spacing:0.05em;color:var(--mid-gray)">sign_ocr.py</code> uses Tesseract-based
+        OCR to parse Indian speed-limit signs from the video feed. Recognised limits are displayed live on the
+        glassmorphic dashboard overlay — fully offline, zero API dependency.
+      </p>
+      <button class="feature-cta reveal reveal-delay-3">
+        View sign_ocr.py <div class="feature-cta-line"></div>
+      </button>
+    </div>
+    <div class="feature-bg-number reveal" style="transition-delay:0s">03</div>
+  </section>
+
+  <!-- ── FEATURE 4 ── -->
+  <section class="feature-section">
+    <div class="feature-content" style="margin-left: auto; text-align: right;">
+      <p class="feature-number reveal">04 — Robot Eye UI</p>
+      <h2 class="feature-title reveal reveal-delay-1">A co-pilot that<br>reacts with you.</h2>
+      <p class="feature-desc reveal reveal-delay-2" style="margin-left:auto">
+        The <code style="font-size:12px;letter-spacing:0.05em;color:var(--mid-gray)">Web-Eye-Animation</code> widget is
+        embedded directly into the dashboard as a personality-driven virtual assistant. Its animated eyes respond to
+        lane deviation events and ADAS system states in real time — groundwork for a full Groq/OpenAI conversational
+        co-pilot.
+      </p>
+      <button class="feature-cta reveal reveal-delay-3" style="margin-left:auto">
+        View Web-Eye-Animation <div class="feature-cta-line"></div>
+      </button>
+    </div>
+    <div class="feature-bg-number reveal" style="transition-delay:0s; left:5vw; right:auto">04</div>
+  </section>
+
+  <!-- ── TECH STACK / "SPECS" ── -->
+  <section class="specs-section" id="start">
+    <p class="specs-heading reveal">Stack &amp; Quick Start</p>
+    <div class="specs-grid">
+      <div class="spec-item reveal">
+        <div class="spec-value" style="font-size:clamp(22px,3vw,38px); letter-spacing:0.02em;">YOLOv8</div>
+        <div class="spec-label">Object Detection Engine</div>
+      </div>
+      <div class="spec-item reveal reveal-delay-1">
+        <div class="spec-value" style="font-size:clamp(22px,3vw,38px); letter-spacing:0.02em;">Flask</div>
+        <div class="spec-label">Web Backend + Video Stream</div>
+      </div>
+      <div class="spec-item reveal reveal-delay-2">
+        <div class="spec-value" style="font-size:clamp(22px,3vw,38px); letter-spacing:0.02em;">OCR</div>
+        <div class="spec-label">Local Sign Recognition</div>
+      </div>
+      <div class="spec-item reveal reveal-delay-3">
+        <div class="spec-value" style="font-size:clamp(22px,3vw,38px); letter-spacing:0.02em;">Python<span
+            class="spec-unit" style="font-size:13px"> 3.10+</span></div>
+        <div class="spec-label">Runtime</div>
+      </div>
+    </div>
+
+    <!-- Quick start block -->
+    <div class="reveal" style="margin-top:80px; border-top:1px solid rgba(255,255,255,0.07); padding-top:56px;">
+      <p class="specs-heading" style="margin-bottom:32px;">Run It in Three Steps</p>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:2px;">
+        <div class="spec-item" style="padding:40px 32px;">
+          <div style="font-size:11px;letter-spacing:0.3em;color:#555;text-transform:uppercase;margin-bottom:16px;">Step
+            01</div>
+          <div style="font-size:14px;font-weight:300;line-height:1.8;color:#aaa;font-family:monospace;">python -m venv
+            venv<br>source venv/bin/activate<br>pip install -r requirements.txt</div>
+        </div>
+        <div class="spec-item" style="padding:40px 32px;">
+          <div style="font-size:11px;letter-spacing:0.3em;color:#555;text-transform:uppercase;margin-bottom:16px;">Step
+            02</div>
+          <div style="font-size:14px;font-weight:300;line-height:1.8;color:#aaa;font-family:monospace;">Place
+            yolov8n.pt<br>in project root<br>&nbsp;</div>
+        </div>
+        <div class="spec-item" style="padding:40px 32px;">
+          <div style="font-size:11px;letter-spacing:0.3em;color:#555;text-transform:uppercase;margin-bottom:16px;">Step
+            03</div>
+          <div style="font-size:14px;font-weight:300;line-height:1.8;color:#aaa;font-family:monospace;">python
+            app.py<br>→ localhost:5000<br>&nbsp;</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="logo-small">Pixel OS — ADAS Dashboard &copy; 2026</div>
+    <ul class="footer-links">
+      <li><a href="#">GitHub</a></li>
+      <li><a href="#">Docs</a></li>
+      <li><a href="#">Contact</a></li>
+      <li><a href="#">MIT License</a></li>
+    </ul>
+  </footer>
+
+  <script>
+    // ── Reveal on scroll ──
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    reveals.forEach(el => observer.observe(el));
+
+    // ── Nav background on scroll ──
+    const nav = document.querySelector('nav');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) {
+        nav.style.background = 'rgba(255,255,255,0.92)';
+        nav.style.backdropFilter = 'blur(12px)';
+        nav.style.borderBottom = '1px solid var(--light-gray)';
+      } else {
+        nav.style.background = 'transparent';
+        nav.style.backdropFilter = 'none';
+        nav.style.borderBottom = 'none';
+      }
+    }, { passive: true });
+  </script>
+</body>
+
+</html>

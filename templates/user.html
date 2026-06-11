@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelOS — Driver View</title>
+  <meta name="description" content="PixelOS minimal driver dashboard — CarPlay-style with ADAS notifications and AI bot." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #ffffff;
+      --tile:      #ffffff;
+      --tile-dark: #1a1a22;
+      --accent:    #00e5ff;
+      --red:       #ef4444;
+      --green:     #22c55e;
+      --amber:     #f59e0b;
+      --text:      #1a1a2e;
+      --text2:     #55556a;
+      --muted:     #9999aa;
+      --radius:    28px;
+      --bot-size:  142px;
+      --right-w:   130px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      background: url('/images/default.png') center/cover no-repeat fixed;
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ═══════════════════════════════════
+       ROOT LAYOUT — 3 columns: main | bot-gap | right-panel
+    ═══════════════════════════════════ */
+    .root {
+      display: grid;
+      grid-template-columns: 1fr var(--right-w);
+      grid-template-rows: 1fr 62px;
+      height: 100vh;
+      gap: 0;
+      padding: 14px 12px 10px 14px;
+      position: relative;
+    }
+
+    /* ═══════════════════════════════════
+       MAIN AREA (left + centre) — 2×2 tiles + centre bot
+    ═══════════════════════════════════ */
+    .main-area {
+      grid-column: 1;
+      grid-row: 1;
+      position: relative;
+      padding-right: 10px;
+    }
+
+    /* 2×2 tile grid */
+    .tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      height: 100%;
+      gap: 10px;
+    }
+
+    /* Shared tile style */
+    .tile {
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      background: var(--tile);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+      border: 1px solid rgba(0,0,0,0.03);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .tile:active { transform: scale(0.97); }
+
+    /* ── Tile 1: Weather (top-left) ── */
+    #tileWeather {
+      background: linear-gradient(145deg, #7a9ebd 0%, #5a7e9d 40%, #3a5e7d 100%);
+      display: flex;
+      flex-direction: column;
+      padding: 18px 20px 14px;
+      color: #fff;
+    }
+    .weather-city {
+      font-size: clamp(0.75rem, 1.5vw, 1rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+    .weather-temp {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      line-height: 1;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .weather-icon { font-size: clamp(1.6rem, 3.5vw, 2.4rem); margin-left: auto; }
+    .weather-desc { font-size: clamp(0.7rem, 1.2vw, 0.88rem); opacity: 0.8; margin-top: 4px; }
+    .weather-forecast {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .forecast-row {
+      display: flex;
+      align-items: center;
+      font-size: clamp(0.6rem, 1.1vw, 0.78rem);
+      opacity: 0.85;
+      gap: 4px;
+    }
+    .forecast-day { width: 56px; font-weight: 600; }
+    .forecast-icon { font-size: 0.85rem; }
+    .forecast-temp { margin-left: auto; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    /* mountain silhouette pseudo BG */
+    #tileWeather::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 38%;
+      background: linear-gradient(to top, rgba(0,0,0,0.18), transparent);
+      pointer-events: none;
+    }
+
+    /* ── Tile 2: Map (top-right) ── */
+    #tileMap {
+      background: #a8c5a0;
+      overflow: hidden;
+    }
+    #tileMap iframe {
+      width: 100%; height: 100%;
+      border: none;
+    }
+    .map-overlay {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      padding: 3px 10px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: #333;
+    }
+
+    /* ── Tile 3: Video (bottom-left) ── */
+    #tileVideo {
+      background: #0d0d14;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #userVideoStream {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .video-placeholder {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 8px;
+      color: #555;
+    }
+    .video-placeholder-icon { font-size: 1.8rem; opacity: 0.4; }
+    .video-placeholder-text { font-size: 0.7rem; color: #e05500; font-weight: 600; }
+
+    /* ── Tile 4: Clock (bottom-right) ── */
+    #tileClock {
+      background: 
+        radial-gradient(ellipse at 80% 80%, rgba(140, 202, 225, 0.45) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 90%, rgba(210, 208, 235, 0.45) 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 40%, rgba(170, 227, 249, 0.35) 0%, transparent 70%),
+        #f8f9fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+    .clock-time {
+      font-size: clamp(2.8rem, 7vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #111;
+      line-height: 1;
+    }
+    .clock-colon { animation: colonBlink 1s step-start infinite; }
+    @keyframes colonBlink { 0%,49% { opacity:1 } 50%,100% { opacity:0.25 } }
+    .clock-date {
+      font-size: clamp(0.75rem, 1.8vw, 1.15rem);
+      font-weight: 700;
+      color: #333;
+      letter-spacing: 0.01em;
+    }
+
+    /* ═══════════════════════════════════
+       CENTRE BOT — overlays the 4 tiles
+    ═══════════════════════════════════ */
+    .bot-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: var(--bot-size);
+      height: var(--bot-size);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Outer ring (grey shell) */
+    .bot-outer {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Inner dark face */
+    .bot-face-user {
+      width: 100px;
+      height: 70px;
+      background: #111118;
+      border-radius: 95px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+    }
+
+    /* Cyan eyes */
+    .bot-eye-u {
+      width: 26px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 999px;
+      box-shadow: 0 0 12px var(--accent), 0 0 30px rgba(0,229,255,0.5);
+      animation: userEyeBlink 4.5s ease-in-out infinite;
+      transition: translate 0.08s ease, height 0.3s ease, border-radius 0.3s ease, margin 0.3s ease, width 0.3s ease, opacity 0.3s ease;
+    }
+    @keyframes userEyeBlink {
+      0%, 91%, 100% { transform: scaleY(1); }
+      95%            { transform: scaleY(0.07); }
+    }
+
+    /* Expressions CSS */
+    .expr-happy .bot-eye-u {
+      border-radius: 90px 90px 4px 4px;
+      height: 12px;
+      margin-top: -4px;
+      animation: userGiggle 0.4s ease-in-out infinite alternate !important;
+    }
+    @keyframes userGiggle {
+      0% { transform: translateY(0px) scaleY(1); }
+      100% { transform: translateY(-4px) scaleY(1.1); }
+    }
+
+    .expr-sleepy .bot-eye-u {
+      height: 4px;
+      border-radius: 10px;
+      animation: userBreathe 3s ease-in-out infinite !important;
+    }
+    @keyframes userBreathe {
+      0%, 100% { transform: scaleY(1); opacity: 0.5; }
+      50% { transform: scaleY(1.5); opacity: 0.9; }
+    }
+    
+    .bot-sleep-z {
+      position: absolute; 
+      color: var(--accent); 
+      font-size: 1.1rem; 
+      font-weight: 800; 
+      top: 10px; 
+      left: 38%;
+      opacity: 0; 
+      pointer-events: none; 
+      transition: opacity 0.5s;
+    }
+    .expr-sleepy .bot-sleep-z { opacity: 1; animation: floatZ 3s infinite; }
+    @keyframes floatZ { 
+      0% { transform: translateY(0) scale(0.8); opacity: 0; } 
+      50% { opacity: 1; text-shadow: 0 0 8px rgba(0,229,255,0.8); } 
+      100% { transform: translate(3px, -6px) scale(1); opacity: 0; } 
+    }
+
+    .expr-confused #userEyeLeft {
+      border-radius: 6px;
+      height: 18px; width: 26px;
+      animation: confuseShake 0.5s ease-in-out infinite alternate !important;
+    }
+    .expr-confused #userEyeRight {
+      height: 18px; width: 18px;
+      border-radius: 50%;
+      margin-top: 0px;
+      animation: confuseShake 0.4s ease-in-out infinite alternate-reverse !important;
+    }
+    @keyframes confuseShake {
+      0% { transform: rotate(-8deg) translate(-2px, 0); }
+      100% { transform: rotate(8deg) translate(2px, 0); }
+    }
+
+    .expr-bored .bot-eye-u {
+      border-radius: 0 0 90px 90px;
+      height: 12px;
+      margin-top: 6px;
+    }
+
+    /* Bot thought bubble */
+    #userBotThought {
+      position: absolute;
+      bottom: calc(var(--bot-size) + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      background: rgba(10,10,20,0.88);
+      color: var(--accent);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 10px;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 30;
+    }
+    #userBotThought.show { opacity: 1; }
+
+    /* ═══════════════════════════════════
+       RIGHT PANEL — Speed limit + buttons
+    ═══════════════════════════════════ */
+    .right-panel {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-evenly;
+      gap: 0;
+      padding: 0 0 0 2px;
+    }
+
+    /* Speed limit sign */
+    .speed-sign-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .speed-sign-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #fff;
+      border: 5px solid #e00;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(224,0,0,0.25), 0 2px 6px rgba(0,0,0,0.12);
+      transition: all 0.4s;
+    }
+    .speed-sign-circle.active {
+      border-color: #e00;
+      box-shadow: 0 0 0 3px rgba(224,0,0,0.4), 0 4px 20px rgba(224,0,0,0.3);
+    }
+    .speed-sign-circle.stop {
+      background: #e00; border-color: #e00;
+    }
+    .speed-sign-num-user {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.7rem;
+      font-weight: 900;
+      color: #111;
+      line-height: 1;
+    }
+    .speed-sign-circle.stop .speed-sign-num-user { color: #fff; font-size: 0.9rem; }
+    .speed-sign-label-user {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--text2);
+      letter-spacing: 0.06em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    /* Right icons */
+    .icon-btn {
+      width: 65px;
+      height: 65px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+    }
+    .icon-btn:hover { transform: scale(1.08); }
+    .icon-btn:active { transform: scale(0.94); }
+    .icon-btn svg { width: 100%; height: 100%; display: block; }
+    /* Icon colour flips to white on dark wallpapers */
+    body.dark-bg .icon-btn svg { fill: #ffffff; }
+    body.dark-bg .icon-btn svg[stroke] { stroke: #ffffff; fill: none; }
+    
+    .speed-inner-text {
+      position: absolute;
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #000000;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ═══════════════════════════════════
+       BOTTOM BAR — ADAS notifications
+    ═══════════════════════════════════ */
+    .adas-bar {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      background: rgba(180,180,188,0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 10px;
+      margin-top: 8px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .adas-bar-label {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text2);
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-right: 1.5px solid rgba(0,0,0,0.12);
+      padding-right: 10px;
+    }
+    .adas-notifications {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .adas-notif {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+      background: rgba(0,0,0,0.07);
+      color: var(--text2);
+      transition: all 0.4s;
+    }
+    .adas-notif.warn  { background: rgba(245,158,11,0.18); color: #d97706; }
+    .adas-notif.danger { background: rgba(239,68,68,0.18); color: #dc2626; animation: pulseNotif 0.8s ease-in-out infinite; }
+    .adas-notif.ok    { background: rgba(34,197,94,0.18);  color: #16a34a; }
+    @keyframes pulseNotif { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+    /* Lane Departure Slide Banner */
+    #laneBanner {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100%);
+      width: clamp(260px, 40vw, 480px);
+      background: rgba(20, 10, 10, 0.55);
+      backdrop-filter: blur(18px) saturate(1.5);
+      -webkit-backdrop-filter: blur(18px) saturate(1.5);
+      border: 1.5px solid rgba(239, 68, 68, 0.7);
+      border-top: none;
+      border-radius: 0 0 70% 70% / 0 0 50px 50px;
+      padding: 14px 32px 20px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+    #laneBanner.show {
+      transform: translateX(-50%) translateY(0%);
+    }
+    .lane-banner-arrow {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+    .lane-banner-title {
+      font-size: 0.95rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+    .lane-banner-sub {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.7);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    /* ═══════════════════════════════════
+       SETTINGS PANEL
+    ═══════════════════════════════════ */
+    #settingsOverlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #settingsOverlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #settingsPanel {
+      position: fixed;
+      top: 50%; right: -420px;
+      transform: translateY(-50%);
+      width: 360px;
+      max-height: 85vh;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(24px) saturate(1.8);
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: 28px;
+      padding: 28px 24px;
+      z-index: 501;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      transition: right 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #settingsPanel.open { right: 16px; }
+    .settings-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--text);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .settings-close {
+      background: rgba(0,0,0,0.08);
+      border: none;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .settings-close:hover { background: rgba(0,0,0,0.15); }
+    .settings-section {
+      margin-bottom: 22px;
+    }
+    .settings-section-label {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text2);
+      margin-bottom: 12px;
+    }
+    /* Toggle row */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .toggle-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .toggle-label small {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+    /* iOS-style toggle switch */
+    .ios-toggle {
+      position: relative;
+      width: 46px; height: 26px;
+      flex-shrink: 0;
+    }
+    .ios-toggle input { opacity: 0; width: 0; height: 0; }
+    .ios-toggle-slider {
+      position: absolute; inset: 0;
+      background: #ccc;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .ios-toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.3s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    .ios-toggle input:checked + .ios-toggle-slider { background: #00c07a; }
+    .ios-toggle input:checked + .ios-toggle-slider::before { transform: translateX(20px); }
+    /* Wallpaper grid */
+    .wallpaper-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .wp-swatch {
+      aspect-ratio: 16/9;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+    }
+    .wp-swatch:hover { transform: scale(1.04); }
+    .wp-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .wp-swatch img { width: 100%; height: 100%; object-fit: cover; }
+    .wp-swatch.plain {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; font-weight: 700; color: #999;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+
+    /* Admin link badge top-right */
+    .admin-link {
+      position: fixed;
+      top: 10px; right: 10px;
+      background: rgba(0,0,0,0.12);
+      color: var(--text2);
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: background 0.2s;
+      z-index: 100;
+    }
+    .admin-link:hover { background: rgba(0,0,0,0.22); color: var(--text); }
+
+    /* Alert overlay */
+    #userAlertPanel {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%,-50%) scale(0.85);
+      background: rgba(255,245,245,0.96);
+      border: 2px solid rgba(239,68,68,0.5);
+      border-radius: 24px; padding: 22px 40px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 999;
+      box-shadow: 0 8px 40px rgba(239,68,68,0.3);
+    }
+    #userAlertPanel.show { opacity:1; transform:translate(-50%,-50%) scale(1); pointer-events: all; }
+    #userAlertPanel .al-icon  { font-size: 2.8rem; display:block; margin-bottom:8px; }
+    #userAlertPanel .al-title { font-size: 1.1rem; font-weight:900; color:#dc2626; }
+    #userAlertPanel .al-sub   { font-size: 0.76rem; color:#ef4444; margin-top:4px; }
+
+    /* Cutout "gap" effect on tiles near bot — visual notch */
+    .tile-notch {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    /* ── Pixel Voice Assistant — Listening pulse ring ── */
+    .bot-hub.pixel-listening .bot-outer {
+      box-shadow: 0 0 0 5px rgba(0,229,255,0.55), 0 0 28px rgba(0,229,255,0.65);
+      animation: pixelPulse 0.85s ease-in-out infinite;
+    }
+    @keyframes pixelPulse {
+      0%,100% { box-shadow: 0 0 0 4px rgba(0,229,255,0.4), 0 0 20px rgba(0,229,255,0.5); }
+      50%      { box-shadow: 0 0 0 9px rgba(0,229,255,0.2), 0 0 40px rgba(0,229,255,0.8); }
+    }
+    /* Double-tap ripple on bot */
+    .bot-hub.pixel-tap-ripple .bot-outer::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2.5px solid rgba(0,229,255,0.7);
+      animation: tapRipple 0.5s ease-out forwards;
+    }
+    @keyframes tapRipple {
+      0%   { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.45); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<a href="/admin" class="admin-link">⚙ Admin</a>
+
+<div class="root">
+
+  <!-- ════ MAIN AREA ════ -->
+  <div class="main-area">
+    <div class="tiles">
+
+      <!-- Tile 1: Weather -->
+      <div class="tile" id="tileWeather">
+        <div class="weather-city" id="weatherCity">—</div>
+        <div class="weather-temp">
+          <span id="weatherTemp">--</span><span style="font-size:1.5rem;font-weight:400;margin-top:6px">°C</span>
+          <span class="weather-icon" id="weatherIcon">⛅</span>
+        </div>
+        <div class="weather-desc" id="weatherDesc">Fetching weather…</div>
+        <div class="weather-forecast" id="weatherForecast">
+          <div class="forecast-row">
+            <span class="forecast-day">Friday</span>
+            <span class="forecast-icon">☁️</span>
+            <span class="forecast-temp" id="fc1">--°C</span>
+          </div>
+          <div class="forecast-row">
+            <span class="forecast-day">Saturday</span>
+            <span class="forecast-icon">⛅</span>
+            <span class="forecast-temp" id="fc2">--°C</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tile 2: Map -->
+      <div class="tile" id="tileMap">
+        <iframe id="userMapIframe"
+          src="https://maps.google.com/maps?q=loc:0,0&t=m&z=15&output=embed&iwloc=near"
+          title="Map"
+          loading="lazy"
+        ></iframe>
+        <div class="map-overlay" style="pointer-events: none;">📍 Live Map</div>
+      </div>
+
+      <!-- Tile 3: Video (ADAS stream) -->
+      <div class="tile" id="tileVideo">
+        <img id="userVideoStream" src="" alt="ADAS stream" />
+        <div class="video-placeholder" id="userVideoPlaceholder">
+          <span class="video-placeholder-icon">🎥</span>
+          <span class="video-placeholder-text">Select a video and press <strong>Start</strong></span>
+        </div>
+      </div>
+
+      <!-- Tile 4: Clock -->
+      <div class="tile" id="tileClock">
+        <div class="clock-time" id="clockTime">
+          <span id="clockHH">00</span><span class="clock-colon">:</span><span id="clockMM">00</span>
+        </div>
+        <div class="clock-date" id="clockDate">—</div>
+      </div>
+
+    </div><!-- /tiles -->
+
+    <!-- ════ CENTRE BOT ════ -->
+    <div class="bot-hub" id="botHub">
+      <div id="userBotThought"></div>
+      <div class="bot-outer">
+        <div class="bot-face-user" id="botFaceUser">
+          <div class="bot-sleep-z">z<sup>z</sup></div>
+          <div class="bot-eye-u" id="userEyeLeft"></div>
+          <div class="bot-eye-u" id="userEyeRight"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+
+  <!-- Lane Departure Banner -->
+  <div id="laneBanner">
+    <div class="lane-banner-arrow" id="laneBannerArrow">⬅️</div>
+    <div class="lane-banner-title" id="laneBannerTitle">LANE DEPARTURE</div>
+    <div class="lane-banner-sub" id="laneBannerSub">Drifting left — steer right</div>
+  </div>
+
+  <!-- Settings Overlay -->
+  <div id="settingsOverlay" onclick="closeSettings()"></div>
+
+  <!-- Settings Panel -->
+  <div id="settingsPanel">
+    <div class="settings-title">
+      ⚙️ Settings
+      <button class="settings-close" onclick="closeSettings()">&#x2715;</button>
+    </div>
+
+    <!-- ADAS section -->
+    <div class="settings-section">
+      <div class="settings-section-label">ADAS Features</div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          Lane Departure Detection
+          <small>Alerts when car drifts out of lane</small>
+        </div>
+        <label class="ios-toggle">
+          <input type="checkbox" id="toggleLane" checked onchange="setLaneDetection(this.checked)">
+          <span class="ios-toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Wallpaper section -->
+    <div class="settings-section">
+      <div class="settings-section-label">Wallpaper</div>
+      <div class="wallpaper-grid">
+        <div class="wp-swatch active" id="wp-default" onclick="setWallpaper('/images/default.png','wp-default',null,false)">
+          <img src="/images/default.png" alt="Default" loading="lazy">
+        </div>
+        <div class="wp-swatch" id="wp-img1" onclick="setWallpaper('/images/img1.png','wp-img1',null,true)">
+          <img src="/images/img1.png" alt="Wallpaper 1" loading="lazy">
+        </div>
+        <div class="wp-swatch" id="wp-img2" onclick="setWallpaper('/images/img2.png','wp-img2',null,false)">
+          <img src="/images/img2.png" alt="Wallpaper 2" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ RIGHT PANEL ════ -->
+  <div class="right-panel">
+
+    <!-- Speed Limit Sign (OCR detected) -->
+    <div class="speed-sign-wrap">
+      <div class="speed-sign-circle" id="userSpeedSign">
+        <div class="speed-sign-num-user" id="userSpeedNum">--</div>
+      </div>
+      <div class="speed-sign-label-user">Speed limit</div>
+    </div>
+
+    <!-- Home icon -->
+    <button class="icon-btn" id="btnHome" onclick="alert('Home')">
+      <svg viewBox="0 0 24 24" fill="#000000">
+        <path d="M12 2L2 11h3v10h5v-6h4v6h5V11h3L12 2z" />
+      </svg>
+    </button>
+
+    <!-- Settings icon -->
+    <button class="icon-btn" id="btnSettings" onclick="openSettings()">
+      <svg viewBox="0 0 24 24" fill="#000000">
+        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+      </svg>
+    </button>
+
+    <!-- Current speed (black circle ring with number inside) -->
+    <div class="icon-btn" style="position: relative; cursor: default;">
+       <svg viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5">
+         <circle cx="12" cy="12" r="10.5" />
+       </svg>
+       <div class="speed-inner-text" id="userCurrSpeed">--</div>
+    </div>
+
+    <!-- More apps icon -->
+    <button class="icon-btn" id="btnMoreApps" onclick="alert('More apps coming soon!')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="2" width="8" height="8" rx="2" />
+        <rect x="13" y="2" width="8" height="8" rx="2" />
+        <rect x="3" y="14" width="8" height="8" rx="2" />
+        <path d="M17 14 v8 M13 18 h8" />
+      </svg>
+    </button>
+
+  </div><!-- /right-panel -->
+
+  <!-- ════ ADAS BOTTOM BAR ════ -->
+  <div class="adas-bar">
+    <div class="adas-bar-label">ADAS</div>
+    <div class="adas-notifications" id="adasNotifications">
+      <div class="adas-notif" id="adasIdle">All systems nominal…</div>
+    </div>
+  </div>
+
+</div><!-- /root -->
+
+<!-- Alert overlay -->
+<div id="userAlertPanel">
+  <span class="al-icon" id="userAlertIcon">⚡</span>
+  <div class="al-title" id="userAlertTitle">Alert</div>
+  <div class="al-sub"   id="userAlertSub"></div>
+</div>
+
+<script>
+/* ══ Global helpers (must be in global scope for onclick= attributes) ══ */
+
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsPanel').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+function setLaneDetection(enabled) {
+  fetch('/toggle_lane', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ enabled })
+  });
+}
+let _activeWpId = 'wp-default';
+function setWallpaper(imgUrl, swatchId, color, isDark) {
+  document.querySelectorAll('.wp-swatch').forEach(s => s.classList.remove('active'));
+  document.getElementById(swatchId).classList.add('active');
+  _activeWpId = swatchId;
+  if (imgUrl) {
+    document.body.style.background = `url('${imgUrl}') center/cover no-repeat fixed`;
+  } else {
+    document.body.style.background = color || '#ffffff';
+  }
+  if (isDark) { document.body.classList.add('dark-bg'); }
+  else { document.body.classList.remove('dark-bg'); }
+}
+</script>
+
+<script>
+(function () {
+  /* ══════════════ CLOCK ══════════════ */
+  const DAYS  = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const MONTHS= ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function tickClock() {
+    const n = new Date();
+    document.getElementById('clockHH').textContent = String(n.getHours()).padStart(2,'0');
+    document.getElementById('clockMM').textContent = String(n.getMinutes()).padStart(2,'0');
+    document.getElementById('clockDate').textContent =
+      DAYS[n.getDay()] + ', ' + MONTHS[n.getMonth()] + '.' + String(n.getDate()).padStart(2,'0');
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  /* ══════════════ WEATHER (wttr.in) & GEOLOCATION ══════════════ */
+  async function fetchWeather(lat, lon) {
+    try {
+      const url = (lat && lon) ? `https://wttr.in/~${lat},${lon}?format=j1` : `https://wttr.in/?format=j1`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      const cur  = data.current_condition[0];
+      const area = data.nearest_area[0];
+      const city = area.areaName[0].value;
+      const tempC = cur.temp_C;
+      const desc  = cur.weatherDesc[0].value;
+      const code  = parseInt(cur.weatherCode, 10);
+
+      const ICONS = {
+        113:'☀️', 116:'⛅', 119:'☁️', 122:'☁️',
+        176:'🌦️', 179:'🌨️', 182:'🌧️', 185:'🌧️',
+        200:'⛈️', 227:'❄️', 230:'❄️', 248:'🌫️',
+        260:'🌫️', 263:'🌦️', 266:'🌧️', 281:'🌨️',
+        284:'🌨️', 293:'🌦️', 296:'🌧️', 299:'🌧️',
+        302:'🌧️', 305:'🌧️', 308:'🌧️', 311:'🌧️',
+        314:'🌧️', 317:'🌩️', 320:'🌨️', 323:'❄️',
+        326:'❄️', 329:'🌨️', 332:'🌨️', 335:'❄️',
+        338:'❄️', 350:'🌧️', 353:'🌦️', 356:'🌧️',
+        359:'🌧️', 362:'🌨️', 365:'🌨️', 368:'❄️',
+        371:'❄️', 374:'🌨️', 377:'🌨️', 386:'⛈️',
+        389:'⛈️', 392:'🌩️', 395:'❄️'
+      };
+      const icon = ICONS[code] || '🌤️';
+
+      document.getElementById('weatherCity').textContent = city;
+      document.getElementById('weatherTemp').textContent = tempC;
+      document.getElementById('weatherDesc').textContent = desc;
+      document.getElementById('weatherIcon').textContent = icon;
+
+      // Forecast
+      if (data.weather && data.weather.length >= 3) {
+        const d = new Date();
+        const fc = [data.weather[1], data.weather[2]];
+        const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        fc.forEach((day, i) => {
+          const dayDate = new Date(d); dayDate.setDate(d.getDate() + i + 1);
+          const el = document.getElementById('fc' + (i+1));
+          if (el) el.textContent = day.maxtempC + '°C';
+          const dayRow = document.querySelectorAll('.forecast-day')[i];
+          if (dayRow) dayRow.textContent = dayNames[dayDate.getDay()];
+        });
+      }
+    } catch(e) { console.error('Weather error:', e); }
+  }
+
+  function initLocationData() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          fetchWeather(lat, lon);
+          
+          document.getElementById('userMapIframe').src = 
+            `https://maps.google.com/maps?q=${lat},${lon}&t=m&z=15&output=embed&iwloc=near`;
+        },
+        (err) => {
+          console.warn("Geolocation denied or failed.", err);
+          fetchWeather(); // default IP based
+        }
+      );
+    } else {
+      fetchWeather();
+    }
+  }
+
+  initLocationData();
+  setInterval(initLocationData, 10 * 60 * 1000);
+
+  /* ══════════════ STATE VARIABLES ══════════════ */
+  let prevSpeed    = null;
+  let prevLimit    = null;
+  let prevVehicles = 0;
+  let prevDeparture = null;
+
+  /* ══════════════ BOT EXPRESSIONS ENGINE ══════════════ */
+  let currentExpr = 'normal';
+  let exprTimeout = null;
+  let isSleepy = false;
+  let idleTimer = null;
+  const IDLE_LIMIT_MS = 20000;
+  
+  function applyExpression(expr) {
+    if (currentExpr === expr) return;
+    const face = document.getElementById('botFaceUser');
+    face.classList.remove('expr-happy', 'expr-sleepy', 'expr-confused', 'expr-bored');
+    if (expr !== 'normal') face.classList.add(`expr-${expr}`);
+    currentExpr = expr;
+  }
+
+  function setTempExpression(expr, duration) {
+    applyExpression(expr);
+    if (exprTimeout) clearTimeout(exprTimeout);
+    exprTimeout = setTimeout(() => {
+      exprTimeout = null;
+      reEvalExpression();
+    }, duration);
+  }
+  window.setTempExpression = setTempExpression; // expose for Pixel voice assistant
+
+  function getBaseExpression() {
+    if (isSleepy) return 'sleepy';
+    if (prevVehicles > 3) return 'bored'; // high traffic -> bored
+    return 'normal';
+  }
+
+  function reEvalExpression() {
+    if (exprTimeout) return; // Don't override temp expressions like happy/confused
+    applyExpression(getBaseExpression());
+  }
+
+  function resetIdleTimer() {
+    if (idleTimer) clearTimeout(idleTimer);
+    
+    // Wake up from sleep!
+    if (isSleepy) {
+      isSleepy = false;
+      setTempExpression('confused', 5000); // confused for 5s
+    } else {
+      reEvalExpression(); // Re-eval in case traffic changed
+    }
+
+    idleTimer = setTimeout(() => {
+      if (!exprTimeout) { // Only go to sleep if not doing a temp action
+        isSleepy = true;
+        reEvalExpression();
+      }
+    }, IDLE_LIMIT_MS);
+  }
+  window.resetIdleTimer = resetIdleTimer; // expose for Pixel voice assistant
+
+  resetIdleTimer();
+
+  // ── Bot single-click: giggle; double-click/tap: activate Pixel ──
+  let botClickTimer = null;
+  let botClickCount = 0;
+
+  function onBotTap() {
+    botClickCount++;
+    resetIdleTimer();
+
+    if (botClickCount === 1) {
+      // Wait briefly to see if a second tap follows
+      botClickTimer = setTimeout(() => {
+        botClickCount = 0;
+        // Single tap → giggle as before
+        setTempExpression('happy', 3000);
+      }, 320);
+    } else if (botClickCount >= 2) {
+      clearTimeout(botClickTimer);
+      botClickCount = 0;
+      // Ripple visual
+      const hub = document.getElementById('botHub');
+      hub.classList.add('pixel-tap-ripple');
+      setTimeout(() => hub.classList.remove('pixel-tap-ripple'), 500);
+      // Activate Pixel
+      pixelActivate();
+    }
+  }
+
+  document.getElementById('botHub').addEventListener('click', onBotTap);
+  document.getElementById('botHub').addEventListener('touchend', (e) => {
+    e.preventDefault();
+    onBotTap();
+  }, { passive: false });
+
+  /* ══════════════ BOT EYES MOVEMENT ══════════════ */
+  const eyeL = document.getElementById('userEyeLeft');
+  const eyeR = document.getElementById('userEyeRight');
+  const MAX_PX = 4;
+
+  document.addEventListener('mousemove', e => {
+    resetIdleTimer();
+    const hub  = document.getElementById('botHub');
+    const rect = hub.getBoundingClientRect();
+    const cx   = rect.left + rect.width  / 2;
+    const cy   = rect.top  + rect.height / 2;
+    const dx   = e.clientX - cx;
+    const dy   = e.clientY - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    const nx   = (dx/dist) * Math.min(dist/80, 1) * MAX_PX;
+    const ny   = (dy/dist) * Math.min(dist/80, 1) * MAX_PX;
+    const t    = `${nx.toFixed(1)}px ${ny.toFixed(1)}px`;
+    eyeL.style.translate = t;
+    eyeR.style.translate = t;
+  });
+
+  /* ══════════════ BOT THOUGHT ══════════════ */
+  let thoughtTimer = null;
+  function showUserThought(text, dur = 2800) {
+    const el = document.getElementById('userBotThought');
+    el.textContent = text;
+    el.classList.add('show');
+    if (thoughtTimer) clearTimeout(thoughtTimer);
+    thoughtTimer = setTimeout(() => el.classList.remove('show'), dur);
+  }
+  window.showUserThought = showUserThought; // expose for Pixel voice assistant
+
+  /* ══════════════ LANE DEPARTURE BANNER ══════════════ */
+  let laneBannerTimer = null;
+  function showLaneBanner(dir) {
+    const banner  = document.getElementById('laneBanner');
+    const arrow   = document.getElementById('laneBannerArrow');
+    const sub     = document.getElementById('laneBannerSub');
+    if (dir === 'left') {
+      arrow.textContent = '⬅️';
+      sub.textContent   = 'Drifting left — steer right';
+    } else {
+      arrow.textContent = '➡️';
+      sub.textContent   = 'Drifting right — steer left';
+    }
+    banner.classList.add('show');
+    if (laneBannerTimer) clearTimeout(laneBannerTimer);
+    laneBannerTimer = setTimeout(() => banner.classList.remove('show'), 3000);
+  }
+
+  /* ══════════════ ALERT ══════════════ */
+  let alertTimer = null;
+  function showUserAlert(icon, title, sub, dur = 2400) {
+    document.getElementById('userAlertIcon').textContent  = icon;
+    document.getElementById('userAlertTitle').textContent = title;
+    document.getElementById('userAlertSub').textContent   = sub;
+    document.getElementById('userAlertPanel').classList.add('show');
+    if (alertTimer) clearTimeout(alertTimer);
+    alertTimer = setTimeout(() =>
+      document.getElementById('userAlertPanel').classList.remove('show'), dur);
+  }
+
+  /* ══════════════ ADAS NOTIFICATIONS ══════════════ */
+  function pushADAS(text, type = '') {
+    const container = document.getElementById('adasNotifications');
+    // clear idle placeholder
+    const idle = document.getElementById('adasIdle');
+    if (idle) idle.remove();
+
+    const notif = document.createElement('div');
+    notif.className = 'adas-notif ' + type;
+    notif.textContent = text;
+    container.appendChild(notif);
+
+    // max 4 notifications visible
+    const all = container.querySelectorAll('.adas-notif');
+    if (all.length > 4) all[0].remove();
+
+    // auto-remove after 5 s
+    setTimeout(() => { notif.remove(); restoreIdle(); }, 5000);
+  }
+
+  function restoreIdle() {
+    const container = document.getElementById('adasNotifications');
+    if (container.querySelectorAll('.adas-notif').length === 0) {
+      const idle = document.createElement('div');
+      idle.className = 'adas-notif';
+      idle.id = 'adasIdle';
+      idle.textContent = 'All systems nominal…';
+      container.appendChild(idle);
+    }
+  }
+
+  /* ══════════════ SPEED LIMIT SIGN UI ══════════════ */
+  let currentLimit = null;
+
+  function updateUserSpeedSign(limit) {
+    const sign = document.getElementById('userSpeedSign');
+    const num  = document.getElementById('userSpeedNum');
+    sign.className = 'speed-sign-circle';
+    if (limit === null) {
+      num.textContent = '--';
+    } else if (limit === 0) {
+      num.textContent = 'STOP';
+      sign.classList.add('stop');
+    } else {
+      num.textContent = limit;
+      sign.classList.add('active');
+    }
+    currentLimit = limit;
+  }
+
+  /* ══════════════ VIDEO STREAM SYNC ══════════════ */
+  let streamActive = false;
+
+  function syncStream(isRunning) {
+    const img    = document.getElementById('userVideoStream');
+    const ph     = document.getElementById('userVideoPlaceholder');
+    if (isRunning && !streamActive) {
+      img.src = '/stream?' + Date.now();
+      img.style.display = 'block';
+      ph.style.display  = 'none';
+      streamActive = true;
+    } else if (!isRunning && streamActive) {
+      img.src = ''; img.style.display = 'none';
+      ph.style.display = 'flex';
+      streamActive = false;
+    }
+  }
+
+  /* ══════════════ STATE POLL ══════════════ */
+  let lastStateRunning = false;
+  let lastLimit = undefined;
+  let manualSpeedVal = 0; // synced from admin (via poll)
+
+  async function pollState() {
+    try {
+      const res   = await fetch('/state');
+      const state = await res.json();
+      const limit = state.speed_limit;
+      const speed = state.manual_speed ?? manualSpeedVal;
+      const vehicles = state.vehicle_count ?? 0;
+
+      // update current speed display
+      document.getElementById('userCurrSpeed').textContent =
+        (speed !== null && speed !== undefined) ? speed : '--';
+
+      // Speed limit sign
+      if (limit !== lastLimit) {
+        updateUserSpeedSign(limit ?? null);
+        if (lastLimit !== undefined) {
+          showUserThought(
+            'Speed limit: ' + (limit === null ? 'unknown' : limit === 0 ? 'STOP!' : limit + ' km/h') + ' 🚦'
+          );
+        }
+        lastLimit = limit;
+      }
+
+      // Stream sync
+      syncStream(state.running);
+
+      // ADAS speed alerts
+      if (limit !== null && speed !== null && speed !== undefined) {
+        const diff = speed - limit;
+        if (limit === 0 && speed > 0) {
+          pushADAS('🛑 STOP SIGN — You must stop!', 'danger');
+        } else if (diff > 20) {
+          pushADAS(`🚨 Way too fast! ${diff} km/h over limit`, 'danger');
+        } else if (diff > 5) {
+          pushADAS(`⚠️ Slightly over limit (+${diff} km/h)`, 'warn');
+        }
+      }
+
+      // Traffic light
+      if (state.traffic_light === 'Detected') {
+        if (prevVehicles !== vehicles) pushADAS('🚦 Traffic light ahead', '');
+      }
+      // Stop sign
+      if (state.sign_detected === 'stop') pushADAS('🛑 Stop sign detected by camera', 'danger');
+
+      // Lane departure
+      const dep = state.lane_departure;
+      if (dep && dep !== prevDeparture) {
+        if (dep === 'left') {
+          pushADAS('⬅️ Lane departure — drifting LEFT!', 'danger');
+          showLaneBanner('left');
+        } else if (dep === 'right') {
+          pushADAS('➡️ Lane departure — drifting RIGHT!', 'danger');
+          showLaneBanner('right');
+        }
+      }
+      prevDeparture = dep;
+
+      if (prevVehicles !== vehicles) {
+        prevVehicles = vehicles;
+        reEvalExpression();
+      }
+      prevSpeed = speed;
+      prevLimit = limit;
+
+    } catch(_) {}
+  }
+
+  setInterval(pollState, 700);
+  setTimeout(pollState, 500);
+
+  /* ══════════════ IDLE BOT THOUGHTS ══════════════ */
+  const IDLE = [
+    'Watching the road… 👀',
+    'Ready for your drive!',
+    'All systems active 🤖',
+    'Stay safe out there!',
+    'Scanning for signs…',
+    'Looking both ways 👁️',
+  ];
+  let idleIdx = 0;
+  setInterval(() => showUserThought(IDLE[idleIdx++ % IDLE.length], 3000), 6000);
+  setTimeout(() => showUserThought('Hello! Ready to drive? 🚗', 3200), 1500);
+
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════
+   PIXEL VOICE ASSISTANT
+   Wake word: "Hey Pixel"  |  Double-tap bot to activate manually
+══════════════════════════════════════════════════ */
+(function() {
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    console.warn('[Pixel] SpeechRecognition not supported in this browser.');
+    return;
+  }
+
+  /* ── State ── */
+  let voices    = [];
+  let activated = false;   // true = awaiting command after wake word
+  let isSpeaking = false;
+  let recognition;
+
+  /* ── TTS Voices ── */
+  function loadVoices() { voices = speechSynthesis.getVoices(); }
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+
+  function getVoice() {
+    return voices.find(v =>
+      v.name.toLowerCase().includes('zira') ||
+      v.name.toLowerCase().includes('samantha') ||
+      v.name.toLowerCase().includes('google uk english female') ||
+      v.name.toLowerCase().includes('female')
+    ) || voices[0];
+  }
+
+  /* ── Speak ── */
+  function speak(text, onDone) {
+    isSpeaking = true;
+    showUserThought(text.length > 42 ? text.slice(0, 42) + '…' : text, 5000);
+    const utter   = new SpeechSynthesisUtterance(text);
+    utter.voice   = getVoice();
+    utter.rate    = 1.05;
+    utter.pitch   = 1.15;
+    utter.onend   = () => { isSpeaking = false; if (onDone) onDone(); };
+    utter.onerror = () => { isSpeaking = false; };
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(utter), 150);
+  }
+
+  /* ── Listening visual ── */
+  function setListeningUI(on) {
+    document.getElementById('botHub').classList.toggle('pixel-listening', on);
+  }
+
+  /* ── Wake-word check ── */
+  function isWakeWord(t) {
+    return (t.includes('hey') || t.includes('hi') || t.includes('ok')) &&
+      (t.includes('pixel') || t.includes('pixal') || t.includes('picksal') || t.includes('pixcel'));
+  }
+
+  /* ── Activate Pixel manually (double-tap) ── */
+  window.pixelActivate = function() {
+    if (activated) {
+      // Double-tap again → deactivate
+      activated = false;
+      setListeningUI(false);
+      speechSynthesis.cancel();
+      return;
+    }
+    activated = true;
+    setTempExpression('happy', 3000);
+    setListeningUI(true);
+    speechSynthesis.cancel();
+    setTimeout(() => speak("Yes? I'm listening."), 200);
+  };
+
+  /* ── Command handler ── */
+  function handleCommand(cmd) {
+    activated = false;
+    setListeningUI(false);
+
+    /* TIME */
+    if (cmd.includes('time')) {
+      const n    = new Date();
+      const h12  = n.getHours() % 12 || 12;
+      const mm   = String(n.getMinutes()).padStart(2, '0');
+      const ampm = n.getHours() >= 12 ? 'PM' : 'AM';
+      speak(`The time is ${h12}:${mm} ${ampm}.`);
+
+    /* WEATHER */
+    } else if (cmd.includes('weather') || cmd.includes('temperature') || cmd.includes('temp')) {
+      const temp = document.getElementById('weatherTemp').textContent;
+      const desc = document.getElementById('weatherDesc').textContent;
+      const city = document.getElementById('weatherCity').textContent;
+      const info = (city && city !== '—') ? `in ${city}` : '';
+      speak(`Current weather ${info}: ${temp} degrees Celsius, ${desc}.`);
+
+    /* SPEED */
+    } else if (cmd.includes('speed') || cmd.includes('how fast') || cmd.includes('going')) {
+      const spd = document.getElementById('userCurrSpeed').textContent;
+      if (!spd || spd === '--') {
+        speak('Speed data is not available yet. Make sure ADAS is running.');
+      } else {
+        speak(`You are currently going ${spd} kilometres per hour.`);
+      }
+
+    /* NAVIGATE */
+    } else if (
+      cmd.includes('navigate') || cmd.includes('take me to') ||
+      cmd.includes('go to')    || cmd.includes('directions to') ||
+      cmd.includes('open maps')
+    ) {
+      const dest = cmd
+        .replace(/.*?(?:navigate to|take me to|go to|directions to|navigate|open maps)\s*/i, '')
+        .trim();
+      if (dest.length > 1) {
+        speak(`Navigating to ${dest}.`, () => {
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`,
+            '_blank'
+          );
+        });
+      } else {
+        activated = true;
+        setListeningUI(true);
+        speak('Where would you like to go? Please say the destination.');
+      }
+
+    /* GREET */
+    } else if (cmd.includes('hello') || cmd.includes('hi pixel') || cmd.includes('how are you')) {
+      speak("Hello! I'm Pixel, your co-pilot. Ask me about time, weather, speed, or navigation.");
+      setTempExpression('happy', 3000);
+
+    /* STOP */
+    } else if (cmd.includes('stop') || cmd.includes('cancel') || cmd.includes('nevermind') || cmd.includes('never mind')) {
+      speechSynthesis.cancel();
+      setListeningUI(false);
+
+    /* UNKNOWN */
+    } else {
+      setTempExpression('confused', 2500);
+      speak("Sorry, I didn't catch that. You can ask: what's the time, weather, speed, or navigate somewhere.");
+    }
+  }
+
+  /* ── Speech Recognition loop ── */
+  function startRecognition() {
+    recognition = new SR();
+    recognition.continuous     = true;
+    recognition.interimResults = false;
+    recognition.lang           = 'en-US';
+
+    recognition.onresult = (e) => {
+      if (isSpeaking) return;
+      const text = e.results[e.results.length - 1][0].transcript.toLowerCase().trim();
+      console.log('[Pixel] heard:', text);
+
+      if (isWakeWord(text)) {
+        activated = true;
+        setTempExpression('happy', 3000);
+        setListeningUI(true);
+        speechSynthesis.cancel();
+        setTimeout(() => speak("Yes? I'm listening."), 200);
+        return;
+      }
+
+      if (activated) {
+        handleCommand(text);
+      }
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        console.warn('[Pixel] recognition error:', e.error);
+      }
+    };
+
+    recognition.onend = () => {
+      // Auto-restart unless page is hidden
+      if (!document.hidden) setTimeout(startRecognition, 400);
+    };
+
+    try { recognition.start(); } catch(ex) { /* already started */ }
+  }
+
+  startRecognition();
+
+})();
+</script>
+</body>
+</html>
