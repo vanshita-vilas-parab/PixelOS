@@ -118,8 +118,3 @@ PixelOS/
 
 MIT License
 
----
-
-## 👨‍💻 Author
-
-**Soham Patil**
